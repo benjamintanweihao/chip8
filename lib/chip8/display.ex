@@ -1,5 +1,4 @@
 defmodule Chip8.Display do
-
   @doc "Intialize new display"
   def new do
     for x <- 0..63, into: %{} do
@@ -7,5 +6,4 @@ defmodule Chip8.Display do
       {x, ys}
     end
   end
-
 end

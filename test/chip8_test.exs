@@ -11,17 +11,15 @@ defmodule Chip8Test do
     assert List.last(instructions) == "0000"
   end
 
-  test "initialize memory" do
-    memory = Chip8.Memory.new()
-
-    for m <- Map.keys(memory) do
-      assert String.length(m) == 3
-    end
-  end
-
   test "initialize display" do
     display = Chip8.Display.new()
 
     assert length(Map.keys(display)) == 64
+  end
+
+  test "initialize CHIP-8" do
+    {:ok, pid} = Chip8.start_link()
+
+    Process.sleep(100)
   end
 end
