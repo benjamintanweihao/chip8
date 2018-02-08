@@ -265,7 +265,7 @@ defmodule Chip8 do
     vy = String.to_atom("v" <> <<y>>)
     add = state[vx] + state[vy]
 
-    %{state | vF: (if add > 255, do: 1, else: 0)} |> Map.replace!(vx, add &&& 0xFF)
+    %{state | vF: if(add > 255, do: 1, else: 0)} |> Map.replace!(vx, add &&& 0xFF)
   end
 
   ###############################################################################################
@@ -279,7 +279,94 @@ defmodule Chip8 do
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vx] - state[vy]
 
-    %{state | vF: (if sub > 0, do: 1, else: 0)} |> Map.replace!(vx, sub)
+    %{state | vF: if(sub > 0, do: 1, else: 0)} |> Map.replace!(vx, sub)
   end
 
+  ###############################################################################################
+  # 8xy6 - SHR Vx {, Vy}
+  # Set Vx = Vx SHR 1.
+  #
+  # If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided
+  # by 2.
+  def execute(<<"8", x, _y, "6">>, state) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    %{state | vF: if(state[vx] &&& 1 == 1, do: 1, else: 0)} |> Map.replace!(vx, div(state[vx], 2))
+  end
+
+  ###############################################################################################
+  # 8xy7 - SUBN Vx, Vy
+  # Set Vx = Vy - Vx, set VF = NOT borrow.
+  #
+  # If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results
+  # stored in Vx.
+  def execute(<<"8", x, y, "7">>, state) do
+    vx = String.to_atom("v" <> <<x>>)
+    vy = String.to_atom("v" <> <<y>>)
+    sub = state[vy] - state[vx]
+
+    %{state | vF: if(sub > 0, do: 1, else: 0)} |> Map.replace!(vx, sub)
+  end
+
+  ###############################################################################################
+  # 8xyE - SHL Vx {, Vy}
+  # Set Vx = Vx SHL 1.
+  #
+  # If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is
+  # multiplied by 2.
+  def execute(<<"8", x, _y, "E">>, state) do
+    vx = String.to_atom("v" <> <<x>>)
+    msb = state[vx] &&& 0x80
+
+    %{state | vF: if(msb == 0x80, do: 1, else: 0)} |> Map.replace!(vx, state[vx] * 2)
+  end
+
+  ###############################################################################################
+  # 9xy0 - SNE Vx, Vy
+  # Skip next instruction if Vx != Vy.
+  #
+  # The values of Vx and Vy are compared, and if they are not equal, the program counter is
+  # increased by 2.
+  def execute(<<"9", x, y, "0">>, state = %{pc: pc}) do
+    vx = String.to_atom("v" <> <<x>>)
+    vy = String.to_atom("v" <> <<y>>)
+
+    %{state | pc: if(state[vx] != state[vy], do: pc + 2, else: pc)}
+  end
+
+  ###############################################################################################
+  # Annn - LD I, addr
+  # Set I = nnn.
+  #
+  # The value of register I is set to nnn.
+  def execute(<<"A", n1, n2, n3>>, state) do
+    {new_i, ""} = Integer.parse(<<n1, n2, n3>>, 16)
+
+    %{state | i: new_i}
+  end
+
+  ###############################################################################################
+  # Bnnn - JP V0, addr
+  # Jump to location nnn + V0.
+  #
+  # The program counter is set to nnn plus the value of V0.
+  def execute(<<"B", n1, n2, n3>>, state = %{v0: v0}) do
+    {add, ""} = Integer.parse(<<n1, n2, n3>>, 16)
+
+    %{state | pc: add + v0}
+  end
+
+  ###############################################################################################
+  # Cxkk - RND Vx, byte
+  # Set Vx = random byte AND kk.
+  #
+  # The interpreter generates a random number from 0 to 255, which is then ANDed with the value
+  # kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
+  def execute(<<"C", x, k1, k2>>, state) do
+    rand = Enum.take_random(0..255, 1) |> hd()
+    {kk, ""} = Integer.parse(<<k1, k2>>, 16)
+    vx = String.to_atom("v" <> <<x>>)
+
+    Map.replace!(state, vx, rand &&& kk)
+  end
 end
