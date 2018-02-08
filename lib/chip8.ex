@@ -369,4 +369,161 @@ defmodule Chip8 do
 
     Map.replace!(state, vx, rand &&& kk)
   end
+
+  ###############################################################################################
+  # Dxyn - DRW Vx, Vy, nibble
+  # Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+  #
+  # The interpreter reads n bytes from memory, starting at the address stored in I. These bytes
+  # are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the
+  # existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set
+  # to 0. If the sprite is positioned so part of it is outside the coordinates of the display,
+  # it wraps around to the opposite side of the screen. See instruction 8xy3 for more information
+  # on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+  def execute(<<"D", x, y, n>>, state = %{memory: memory}) do
+    # TODO
+    # vx = String.to_atom("v" <> <<x>>)
+    # vy = String.to_atom("v" <> <<y>>)
+
+    # i = memory[state[vx]][state[vy]]
+
+    state
+  end
+
+  ###############################################################################################
+  # Ex9E - SKP Vx
+  # Skip next instruction if key with the value of Vx is pressed.
+  #
+  # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down
+  # position, PC is increased by 2.
+  def execute(<<"E", x, "9E">>, state) do
+    # TODO
+    state
+  end
+
+  ###############################################################################################
+  # ExA1 - SKNP Vx
+  # Skip next instruction if key with the value of Vx is not pressed.
+  #
+  # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up
+  # position, PC is increased by 2.
+  def execute(<<"E", x, "A1">>, state) do
+    # TODO
+    state
+  end
+
+  ###############################################################################################
+  # Fx07 - LD Vx, DT
+  # Set Vx = delay timer value.
+  #
+  # The value of DT is placed into Vx.
+  def execute(<<"F", x, "07">>, state = %{dt: dt}) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    Map.replace!(state, vx, dt)
+  end
+
+  ###############################################################################################
+  # Fx0A - LD Vx, K
+  # Wait for a key press, store the value of the key in Vx.
+  #
+  # All execution stops until a key is pressed, then the value of that key is stored in Vx.
+  def execute(<<"F", x, "0A">>, state) do
+    # TODO
+    state
+  end
+
+  ###############################################################################################
+  # Fx15 - LD DT, Vx
+  # Set delay timer = Vx.
+  #
+  # DT is set equal to the value of Vx.
+  def execute(<<"F", x, "15">>, state) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    %{state | dt: state[vx]}
+  end
+
+  ###############################################################################################
+  # Fx18 - LD ST, Vx
+  # Set sound timer = Vx.
+  #
+  # ST is set equal to the value of Vx.
+  def execute(<<"F", x, "18">>, state) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    %{state | st: state[vx]}
+  end
+
+  ###############################################################################################
+  # Fx1E - ADD I, Vx
+  # Set I = I + Vx.
+  #
+  # The values of I and Vx are added, and the results are stored in I.
+  def execute(<<"F", x, "1E">>, state = %{i: i}) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    %{state | i: i + state[vx]}
+  end
+
+  ###############################################################################################
+  # Fx29 - LD F, Vx
+  # Set I = location of sprite for digit Vx.
+  #
+  # The value of I is set to the location for the hexadecimal sprite corresponding to the value
+  # of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
+  def execute(<<"F", x, "29">>, state) do
+    # TODO
+    state
+  end
+
+  ###############################################################################################
+  # Fx33 - LD B, Vx
+  # Store BCD representation of Vx in memory locations I, I+1, and I+2.
+  #
+  # The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at
+  # location in I, the tens digit at location I+1, and the ones digit at location I+2.
+  def execute(<<"F", x, "33">>, state = %{memory: memory, i: i}) do
+    vx = String.to_atom("v" <> <<x>>)
+    int = state[vx]
+
+    # TODO: BCD encoding
+    state
+  end
+
+  ###############################################################################################
+  # Fx55 - LD [I], Vx
+  # Store registers V0 through Vx in memory starting at location I.
+  #
+  # The interpreter copies the values of registers V0 through Vx into memory, starting at the
+  # address in I.
+  def execute(<<"F", x, "55">>, state = %{memory: memory, i: i}) do
+    {last, ""} = Integer.parse(<<x>>, 16)
+    {regs, _} = Enum.split(registers(), last + 1)
+
+    updated_memory =
+      regs
+      |> Enum.with_index()
+      |> Enum.reduce(memory, fn {reg, idx} -> Map.replace!(memory, i + idx, state[reg]) end)
+
+    %{state | memory: updated_memory}
+  end
+
+  ###############################################################################################
+  # Fx65 - LD Vx, [I]
+  # Read registers V0 through Vx from memory starting at location I.
+  #
+  # The interpreter reads values from memory starting at location I into registers V0 through Vx.
+  def execute(<<"F", x, "65">>, %{memory: memory, i: i} = state) do
+    {last, ""} = Integer.parse(<<x>>, 16)
+    {regs, _} = Enum.split(registers(), last + 1)
+
+    regs
+    |> Enum.with_index()
+    |> Enum.reduce(state, fn {reg, idx} -> Map.replace!(state, reg, memory[i + idx]) end)
+  end
+
+  defp registers do
+    [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
+  end
 end
