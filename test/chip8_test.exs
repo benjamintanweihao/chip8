@@ -20,6 +20,13 @@ defmodule Chip8Test do
   test "initialize CHIP-8" do
     {:ok, pid} = Chip8.start_link()
 
-    Process.sleep(100)
+    assert Process.alive?(pid)
   end
+
+  describe "opcodes" do
+    test "8xy4" do
+      assert %{v1: 0xFE, v2: 0xFF, vF: 1} = Chip8.execute("8124", %Chip8.State{v1: 0xFF, v2: 0xFF})
+    end
+  end
+
 end
