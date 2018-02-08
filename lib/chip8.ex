@@ -380,12 +380,29 @@ defmodule Chip8 do
   # to 0. If the sprite is positioned so part of it is outside the coordinates of the display,
   # it wraps around to the opposite side of the screen. See instruction 8xy3 for more information
   # on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
-  def execute(<<"D", x, y, n>>, state = %{memory: memory}) do
-    # TODO
-    # vx = String.to_atom("v" <> <<x>>)
-    # vy = String.to_atom("v" <> <<y>>)
+  def execute(<<"D", x, y, n>>, state = %{memory: memory, i: i, display: display}) do
+    {bytes_to_read, ""} = Integer.parse(<<n>>, 16)
+    vx = String.to_atom("v" <> <<x>>)
+    vy = String.to_atom("v" <> <<y>>)
 
-    # i = memory[state[vx]][state[vy]]
+    start_x = state[vx]
+    end_x = start_x + 8
+
+    start_y = state[vy]
+    end_y = start_y + bytes_to_read
+
+    sprite =
+      Enum.map(i..(i+bytes_to_read), fn(loc) ->
+        line = Integer.digits(memory[loc], 2) # binary representation
+        List.duplicate(0, 8 - length(line)) ++ line
+      end)
+
+
+    # TODO
+
+    # for x <- start_x..end_x, y <- start_y..end_y do
+    #   display[mod(x, 64)][mod(y, 32)] =
+    # end
 
     state
   end
@@ -473,8 +490,13 @@ defmodule Chip8 do
   # The value of I is set to the location for the hexadecimal sprite corresponding to the value
   # of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
   def execute(<<"F", x, "29">>, state) do
-    # TODO
-    state
+    vx = String.to_atom("v" <> <<x>>)
+
+    if state[vx] in 0..16 do
+      %{state | i: state[vx]}
+    else
+      state
+    end
   end
 
   ###############################################################################################
@@ -486,9 +508,21 @@ defmodule Chip8 do
   def execute(<<"F", x, "33">>, state = %{memory: memory, i: i}) do
     vx = String.to_atom("v" <> <<x>>)
     int = state[vx]
+    digits = Integer.digits(int)
 
-    # TODO: BCD encoding
-    state
+    updated_memory =
+      case digits do
+        [h, t, o] ->
+          memory |> Map.replace!(i, h) |> Map.replace!(i + 1, t) |> Map.replace!(i + 2, o)
+
+        [t, o] ->
+          memory |> Map.replace!(i, 0) |> Map.replace!(i + 1, t) |> Map.replace!(i + 2, o)
+
+        [o] ->
+          memory |> Map.replace!(i, 0) |> Map.replace!(i + 1, 0) |> Map.replace!(i + 2, o)
+      end
+
+    %{state | memory: updated_memory}
   end
 
   ###############################################################################################
