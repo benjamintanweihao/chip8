@@ -1,9 +1,9 @@
 defmodule Chip8.Display do
   @doc "Intialize new display"
   def new do
-    for x <- 0..63, into: %{} do
-      ys = for y <- 0..31, into: %{}, do: {y, ""}
-      {x, ys}
-    end
+    for x <- 0..63,
+        y <- 0..31,
+        do: {{x, y}, 0},
+        into: %{}
   end
 end

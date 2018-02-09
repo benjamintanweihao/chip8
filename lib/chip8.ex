@@ -380,31 +380,31 @@ defmodule Chip8 do
   # to 0. If the sprite is positioned so part of it is outside the coordinates of the display,
   # it wraps around to the opposite side of the screen. See instruction 8xy3 for more information
   # on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
-  def execute(<<"D", x, y, n>>, state = %{memory: memory, i: i, display: display}) do
-    {bytes_to_read, ""} = Integer.parse(<<n>>, 16)
+  def execute(<<"D", x, y, n>>, state = %{memory: memory, i: i, vF: vF, display: display}) do
+    {height, ""} = Integer.parse(<<n>>, 16)
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
-    start_x = state[vx]
-    end_x = start_x + 8
+    x = state[vx]
+    y = state[vy]
 
-    start_y = state[vy]
-    end_y = start_y + bytes_to_read
-
-    sprite =
-      Enum.map(i..(i+bytes_to_read), fn(loc) ->
-        line = Integer.digits(memory[loc], 2) # binary representation
-        List.duplicate(0, 8 - length(line)) ++ line
+    coords_with_pixels =
+      i..(i + height)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {loc, y} ->
+        padded_row(memory[loc]) |> Enum.with_index()
+        |> Enum.map(fn {value, x} -> {{x, y}, value} end)
       end)
 
+    {new_vF, new_display} =
+      coords_with_pixels
+      |> Enum.reduce({vF, display}, fn {{x, y}, pixel}, {vF, display} ->
+        {prev_pixel, new_display} = get_and_set_pixel(display, x, y + i, pixel)
 
-    # TODO
+        {prev_pixel ||| pixel, new_display}
+      end)
 
-    # for x <- start_x..end_x, y <- start_y..end_y do
-    #   display[mod(x, 64)][mod(y, 32)] =
-    # end
-
-    state
+    %{state | display: new_display, vF: new_vF}
   end
 
   ###############################################################################################
@@ -559,5 +559,15 @@ defmodule Chip8 do
 
   defp registers do
     [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
+  end
+
+  defp padded_row(value) do
+    row = Integer.digits(value, 2)
+    List.duplicate(0, 8 - length(row)) ++ row
+  end
+
+  defp get_and_set_pixel(display, x, y, value) do
+    coords = {rem(x, 64), rem(y, 32)}
+    Map.get_and_update(display, coords, fn prev_value -> {prev_value, value ^^^ prev_value} end)
   end
 end
