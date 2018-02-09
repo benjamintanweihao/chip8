@@ -78,7 +78,7 @@ defmodule Chip8 do
   ###############################################################################################
   # 00E0 - CLS
   # Clear the display.
-  def execute("00E0", state) do
+  def execute(state, "00E0") do
     %{state | display: Display.new()}
   end
 
@@ -88,8 +88,8 @@ defmodule Chip8 do
   #
   # The interpreter sets the program counter to the address at the top of the stack, then
   # subtracts 1 from the stack pointer.
-  def execute("00EE", state = %{stack: [top | _], sp: sp}) do
-    %{state | pc: top, sp: sp - 1}
+  def execute(state = %{stack: [top | bottom], sp: sp}, "00EE") do
+    %{state | pc: top, sp: sp - 1, stack: bottom}
   end
 
   ###############################################################################################
@@ -98,7 +98,7 @@ defmodule Chip8 do
   #
   # This instruction is only used on the old computers on which Chip-8 was originally implemented.
   # It is ignored by modern interpreters.
-  def execute(<<"0", _rest::size(24)>>, state) do
+  def execute(state, <<"0", _rest::size(24)>>) do
     state
   end
 
@@ -107,8 +107,8 @@ defmodule Chip8 do
   # Jump to location nnn.
   #
   # The interpreter sets the program counter to nnn.
-  def execute(<<"1", n1, n2, n3>>, state) do
-    {new_pc, ""} = Integer.parse(<<n1, n2, n3>>, 16)
+  def execute(state, <<"1", nnn :: size(24)>>) do
+    {new_pc, ""} = Integer.parse(<<nnn>>, 16)
     %{state | pc: new_pc}
   end
 
@@ -118,7 +118,7 @@ defmodule Chip8 do
   #
   # The interpreter increments the stack pointer, then puts the current PC on the top of the
   # stack. The PC is then set to nnn.
-  def execute(<<"2", n1, n2, n3>>, state = %{sp: sp, pc: pc, stack: stack}) do
+  def execute(state = %{sp: sp, pc: pc, stack: stack}, <<"2", n1, n2, n3>>) do
     {new_pc, ""} = Integer.parse(<<n1, n2, n3>>, 16)
 
     %{state | sp: sp + 1, stack: [pc | stack], pc: new_pc}
@@ -130,7 +130,7 @@ defmodule Chip8 do
   #
   # The interpreter compares register Vx to kk, and if they are equal, increments the program
   # counter by 2.
-  def execute(<<"3", x, k1, k2>>, state = %{pc: pc}) do
+  def execute(state = %{pc: pc}, <<"3", x, k1, k2>>) do
     vx = state[String.to_atom("v" <> <<x>>)]
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
 
@@ -147,7 +147,7 @@ defmodule Chip8 do
   #
   # The interpreter compares register Vx to kk, and if they are not equal, increments the program
   # counter by 2.
-  def execute(<<"4", x, k1, k2>>, state = %{pc: pc}) do
+  def execute(state = %{pc: pc}, <<"4", x, k1, k2>>) do
     vx = state[String.to_atom("v" <> <<x>>)]
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
 
@@ -164,7 +164,7 @@ defmodule Chip8 do
   #
   # The interpreter compares register Vx to register Vy, and if they are equal, increments the
   # program counter by 2.
-  def execute(<<"5", x, y, "0">>, state = %{pc: pc}) do
+  def execute(state = %{pc: pc}, <<"5", x, y, "0">>) do
     vx = state[String.to_atom("v" <> <<x>>)]
     vy = state[String.to_atom("v" <> <<y>>)]
 
@@ -180,7 +180,7 @@ defmodule Chip8 do
   # Set Vx = kk.
   #
   # The interpreter puts the value kk into register Vx.
-  def execute(<<"6", x, k1, k2>>, state) do
+  def execute(state, <<"6", x, k1, k2>>) do
     reg = String.to_atom("v" <> <<x>>)
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
 
@@ -192,7 +192,7 @@ defmodule Chip8 do
   # Set Vx = Vx + kk.
   #
   # Adds the value kk to the value of register Vx, then stores the result in Vx.
-  def execute(<<"7", x, k1, k2>>, state) do
+  def execute(state, <<"7", x, k1, k2>>) do
     reg = String.to_atom("v" <> <<x>>)
     val = state[reg]
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
@@ -205,7 +205,7 @@ defmodule Chip8 do
   # Set Vx = Vy.
   #
   # Stores the value of register Vy in register Vx.
-  def execute(<<"8", x, y, "0">>, state) do
+  def execute(state, <<"8", x, y, "0">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
@@ -219,7 +219,7 @@ defmodule Chip8 do
   # Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. A bitwise OR
   # compares the corrseponding bits from two values, and if either bit is 1, then the same bit
   # in the result is also 1. Otherwise, it is 0.
-  def execute(<<"8", x, y, "1">>, state) do
+  def execute(state, <<"8", x, y, "1">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
@@ -233,7 +233,7 @@ defmodule Chip8 do
   # Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise
   # AND compares the corrseponding bits from two values, and if both bits are 1, then the same
   # bit in the result is also 1. Otherwise, it is 0.
-  def execute(<<"8", x, y, "2">>, state) do
+  def execute(state, <<"8", x, y, "2">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
@@ -247,7 +247,7 @@ defmodule Chip8 do
   # Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx.
   # An exclusive OR compares the corrseponding bits from two values, and if the bits are not both
   # the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
-  def execute(<<"8", x, y, "3">>, state) do
+  def execute(state, <<"8", x, y, "3">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
@@ -260,12 +260,19 @@ defmodule Chip8 do
   #
   # The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,)
   # VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
-  def execute(<<"8", x, y, "4">>, state) do
+  def execute(state, <<"8", x, y, "4">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
     add = state[vx] + state[vy]
 
-    %{state | vF: if(add > 255, do: 1, else: 0)} |> Map.replace!(vx, add &&& 0xFF)
+    {vF, new_add} =
+      if add > 255 do
+        {1, add - 256}
+      else
+        {0, add}
+      end
+
+    %{state | vF: vF} |> Map.replace!(vx, new_add)
   end
 
   ###############################################################################################
@@ -274,12 +281,19 @@ defmodule Chip8 do
   #
   # If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results
   # stored in Vx.
-  def execute(<<"8", x, y, "5">>, state) do
+  def execute(state, <<"8", x, y, "5">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vx] - state[vy]
 
-    %{state | vF: if(sub > 0, do: 1, else: 0)} |> Map.replace!(vx, sub)
+    {vF, new_sub} =
+      if sub > 0 do
+        {1, sub}
+      else
+        {0, sub + 256}
+      end
+
+    %{state | vF: vF} |> Map.replace!(vx, new_sub)
   end
 
   ###############################################################################################
@@ -288,10 +302,11 @@ defmodule Chip8 do
   #
   # If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided
   # by 2.
-  def execute(<<"8", x, _y, "6">>, state) do
+  def execute(state, <<"8", x, _y, "6">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    %{state | vF: if(state[vx] &&& 1 == 1, do: 1, else: 0)} |> Map.replace!(vx, div(state[vx], 2))
+
+    %{state | vF: if((state[vx] &&& 1) == 1, do: 1, else: 0)} |> Map.replace!(vx, div(state[vx], 2))
   end
 
   ###############################################################################################
@@ -300,7 +315,7 @@ defmodule Chip8 do
   #
   # If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results
   # stored in Vx.
-  def execute(<<"8", x, y, "7">>, state) do
+  def execute(state, <<"8", x, y, "7">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vy] - state[vx]
@@ -314,7 +329,7 @@ defmodule Chip8 do
   #
   # If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is
   # multiplied by 2.
-  def execute(<<"8", x, _y, "E">>, state) do
+  def execute(state, <<"8", x, _y, "E">>) do
     vx = String.to_atom("v" <> <<x>>)
     msb = state[vx] &&& 0x80
 
@@ -327,7 +342,7 @@ defmodule Chip8 do
   #
   # The values of Vx and Vy are compared, and if they are not equal, the program counter is
   # increased by 2.
-  def execute(<<"9", x, y, "0">>, state = %{pc: pc}) do
+  def execute(state = %{pc: pc}, <<"9", x, y, "0">>) do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
@@ -339,7 +354,7 @@ defmodule Chip8 do
   # Set I = nnn.
   #
   # The value of register I is set to nnn.
-  def execute(<<"A", n1, n2, n3>>, state) do
+  def execute(state, <<"A", n1, n2, n3>>) do
     {new_i, ""} = Integer.parse(<<n1, n2, n3>>, 16)
 
     %{state | i: new_i}
@@ -350,7 +365,7 @@ defmodule Chip8 do
   # Jump to location nnn + V0.
   #
   # The program counter is set to nnn plus the value of V0.
-  def execute(<<"B", n1, n2, n3>>, state = %{v0: v0}) do
+  def execute(state = %{v0: v0}, <<"B", n1, n2, n3>>) do
     {add, ""} = Integer.parse(<<n1, n2, n3>>, 16)
 
     %{state | pc: add + v0}
@@ -362,7 +377,7 @@ defmodule Chip8 do
   #
   # The interpreter generates a random number from 0 to 255, which is then ANDed with the value
   # kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
-  def execute(<<"C", x, k1, k2>>, state) do
+  def execute(state, <<"C", x, k1, k2>>) do
     rand = Enum.take_random(0..255, 1) |> hd()
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
     vx = String.to_atom("v" <> <<x>>)
@@ -380,7 +395,7 @@ defmodule Chip8 do
   # to 0. If the sprite is positioned so part of it is outside the coordinates of the display,
   # it wraps around to the opposite side of the screen. See instruction 8xy3 for more information
   # on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
-  def execute(<<"D", x, y, n>>, state = %{memory: memory, i: i, vF: vF, display: display}) do
+  def execute(state = %{memory: memory, i: i, vF: vF, display: display}, <<"D", x, y, n>>) do
     {height, ""} = Integer.parse(<<n>>, 16)
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
@@ -413,7 +428,7 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down
   # position, PC is increased by 2.
-  def execute(<<"E", x, "9E">>, state) do
+  def execute(state, <<"E", x, "9E">>) do
     # TODO
     state
   end
@@ -424,7 +439,7 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up
   # position, PC is increased by 2.
-  def execute(<<"E", x, "A1">>, state) do
+  def execute(state, <<"E", x, "A1">>) do
     # TODO
     state
   end
@@ -434,7 +449,7 @@ defmodule Chip8 do
   # Set Vx = delay timer value.
   #
   # The value of DT is placed into Vx.
-  def execute(<<"F", x, "07">>, state = %{dt: dt}) do
+  def execute(state = %{dt: dt}, <<"F", x, "07">>) do
     vx = String.to_atom("v" <> <<x>>)
 
     Map.replace!(state, vx, dt)
@@ -445,7 +460,7 @@ defmodule Chip8 do
   # Wait for a key press, store the value of the key in Vx.
   #
   # All execution stops until a key is pressed, then the value of that key is stored in Vx.
-  def execute(<<"F", x, "0A">>, state) do
+  def execute(state, <<"F", x, "0A">>) do
     # TODO
     state
   end
@@ -455,7 +470,7 @@ defmodule Chip8 do
   # Set delay timer = Vx.
   #
   # DT is set equal to the value of Vx.
-  def execute(<<"F", x, "15">>, state) do
+  def execute(state, <<"F", x, "15">>) do
     vx = String.to_atom("v" <> <<x>>)
 
     %{state | dt: state[vx]}
@@ -466,7 +481,7 @@ defmodule Chip8 do
   # Set sound timer = Vx.
   #
   # ST is set equal to the value of Vx.
-  def execute(<<"F", x, "18">>, state) do
+  def execute(state, <<"F", x, "18">>) do
     vx = String.to_atom("v" <> <<x>>)
 
     %{state | st: state[vx]}
@@ -477,7 +492,7 @@ defmodule Chip8 do
   # Set I = I + Vx.
   #
   # The values of I and Vx are added, and the results are stored in I.
-  def execute(<<"F", x, "1E">>, state = %{i: i}) do
+  def execute(state = %{i: i}, <<"F", x, "1E">>) do
     vx = String.to_atom("v" <> <<x>>)
 
     %{state | i: i + state[vx]}
@@ -489,7 +504,7 @@ defmodule Chip8 do
   #
   # The value of I is set to the location for the hexadecimal sprite corresponding to the value
   # of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
-  def execute(<<"F", x, "29">>, state) do
+  def execute(state, <<"F", x, "29">>) do
     vx = String.to_atom("v" <> <<x>>)
 
     if state[vx] in 0..16 do
@@ -505,7 +520,7 @@ defmodule Chip8 do
   #
   # The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at
   # location in I, the tens digit at location I+1, and the ones digit at location I+2.
-  def execute(<<"F", x, "33">>, state = %{memory: memory, i: i}) do
+  def execute(state = %{memory: memory, i: i}, <<"F", x, "33">>) do
     vx = String.to_atom("v" <> <<x>>)
     int = state[vx]
     digits = Integer.digits(int)
@@ -531,7 +546,7 @@ defmodule Chip8 do
   #
   # The interpreter copies the values of registers V0 through Vx into memory, starting at the
   # address in I.
-  def execute(<<"F", x, "55">>, state = %{memory: memory, i: i}) do
+  def execute(state = %{memory: memory, i: i}, <<"F", x, "55">>) do
     {last, ""} = Integer.parse(<<x>>, 16)
     {regs, _} = Enum.split(registers(), last + 1)
 
@@ -548,7 +563,7 @@ defmodule Chip8 do
   # Read registers V0 through Vx from memory starting at location I.
   #
   # The interpreter reads values from memory starting at location I into registers V0 through Vx.
-  def execute(<<"F", x, "65">>, %{memory: memory, i: i} = state) do
+  def execute(%{memory: memory, i: i} = state, <<"F", x, "65">>) do
     {last, ""} = Integer.parse(<<x>>, 16)
     {regs, _} = Enum.split(registers(), last + 1)
 
