@@ -146,8 +146,174 @@ defmodule Chip8Test do
     assert %State{vA: 0x3, vF: 1} == execute(state, "8AB6")
   end
 
-  # test "Dxyn" do
-  #   state = %State{v1: 0x0, v2: 0x0, i: 0, display: Display.new(), memory: Memory.new()}
-  #   new_state = execute(state, "D005")
-  # end
+  test "8xy7: SUBN Vx, Vy (Vy > Vx)" do
+    state = %State{vA: 0x4, vB: 0x6}
+
+    assert %State{vA: 0x2, vB: 0x6, vF: 1} == execute(state, "8AB7")
+  end
+
+  test "8xy7: SUBN Vx, Vy (Vy < Vx)" do
+    state = %State{vA: 0x6, vB: 0x2}
+
+    assert %State{vA: 256 - 0x4, vB: 0x2, vF: 0} == execute(state, "8AB7")
+  end
+
+  describe "8xyE: Set Vx = Vx SHL 1" do
+    test "0x1 (without significant bit)" do
+      assert %State{vA: 0x1 * 2, vF: 0} == execute(%State{vA: 0x1}, "8ABE")
+    end
+
+    test "0x11 (without significant bit)" do
+      assert %State{vA: 0x11 * 2, vF: 0} == execute(%State{vA: 0x11}, "8ABE")
+    end
+
+    test "0xF0 (with significant bit)" do
+      assert %State{vA: 0xF0 * 2 - 256, vF: 1} == execute(%State{vA: 0xF0}, "8ABE")
+    end
+  end
+
+  test "9xy0: SNE Vx, Vy (Vx != Vy)" do
+    state = %State{vA: 0x1, vB: 0x2, pc: 6}
+
+    assert %State{vA: 0x1, vB: 0x2, pc: 8} == execute(state, "9AB0")
+  end
+
+  test "9xy0: SNE Vx, Vy (Vx == Vy)" do
+    state = %State{vA: 0x2, vB: 0x2, pc: 6}
+
+    assert %State{vA: 0x2, vB: 0x2, pc: 6} == execute(state, "9AB0")
+  end
+
+  test "Annn: Set I = nnn" do
+    assert %State{i: 0xFAB} == execute(%State{}, "AFAB")
+  end
+
+  test "Bnnn: Jump to location nnn + v0" do
+    assert %State{v0: 0x1, pc: 0xF00 + 0x1} == execute(%State{v0: 0x1}, "BF00")
+  end
+
+  test "Fx07: Set Vx = delay timer value" do
+    assert %State{vB: 0xFF, dt: 0xFF} == execute(%State{dt: 0xFF}, "FB07")
+  end
+
+  test "Fx15: Set delay timer = Vx" do
+    assert %State{vB: 0xFF, dt: 0xFF} == execute(%State{vB: 0xFF}, "FB15")
+  end
+
+  test "Fx18: Set sound timer = Vx" do
+    assert %State{vB: 0xFF, st: 0xFF} == execute(%State{vB: 0xFF}, "FB18")
+  end
+
+  test "Fx1E: Set I = I + Vx" do
+    assert %State{vB: 0xFF, i: 0xFF + 0x1} == execute(%State{vB: 0xFF, i: 0x1}, "FB1E")
+  end
+
+  describe "Fx29: Set I = location of sprite for digit Vx" do
+    test "First sprite" do
+      memory = Memory.new()
+
+      assert %State{v1: 0x0, i: 0, memory: memory} ==
+               execute(%State{v1: 0x0, memory: memory}, "F129")
+    end
+
+    test "Second sprite" do
+      memory = Memory.new()
+
+      assert %State{v1: 0x1, i: 5, memory: memory} ==
+               execute(%State{v1: 0x1, memory: memory}, "F129")
+    end
+
+    test "Last sprite" do
+      memory = Memory.new()
+
+      assert %State{v1: 0xF, i: 75, memory: memory} ==
+               execute(%State{v1: 0xF, memory: memory}, "F129")
+    end
+  end
+
+  describe "Fx33: Store BCD representation of Vx in memory locations I, I+1, and I+2." do
+    test "135" do
+      %State{memory: memory} = execute(%State{v1: 135, memory: Memory.new(), i: 0x200}, "F133")
+
+      assert memory[0x200] == 1
+      assert memory[0x200 + 1] == 3
+      assert memory[0x200 + 2] == 5
+    end
+
+    test "35" do
+      %State{memory: memory} = execute(%State{v1: 35, memory: Memory.new(), i: 0x200}, "F133")
+
+      assert memory[0x200] == 0
+      assert memory[0x200 + 1] == 3
+      assert memory[0x200 + 2] == 5
+    end
+
+    test "5" do
+      %State{memory: memory} = execute(%State{v1: 5, memory: Memory.new(), i: 0x200}, "F133")
+
+      assert memory[0x200] == 0
+      assert memory[0x200 + 1] == 0
+      assert memory[0x200 + 2] == 5
+    end
+  end
+
+  describe "Fx55: Store registers V0 through Vx in memory starting at location I" do
+    test "V0 to V2 (V3 is not included)" do
+      %State{memory: memory} =
+        execute(%State{v0: 0, v1: 1, v2: 2, v3: 3, memory: Memory.new(), i: 0x200}, "F255")
+
+      assert memory[0x200] == 0
+      assert memory[0x200 + 1] == 1
+      assert memory[0x200 + 2] == 2
+      refute memory[0x200 + 3] == 3
+    end
+
+    test "V0 to VA" do
+      state = %State{
+        v0: 0,
+        v1: 1,
+        v2: 2,
+        v3: 3,
+        v4: 4,
+        v5: 5,
+        v6: 6,
+        v7: 7,
+        v8: 8,
+        v9: 9,
+        vA: 10,
+        memory: Memory.new(),
+        i: 0x200
+      }
+
+      %State{memory: memory} = execute(state, "FA55")
+
+      assert memory[0x200] == 0
+      assert memory[0x200 + 1] == 1
+      assert memory[0x200 + 2] == 2
+      assert memory[0x200 + 3] == 3
+      assert memory[0x200 + 4] == 4
+      assert memory[0x200 + 5] == 5
+      assert memory[0x200 + 6] == 6
+      assert memory[0x200 + 7] == 7
+      assert memory[0x200 + 8] == 8
+      assert memory[0x200 + 9] == 9
+      assert memory[0x200 + 10] == 10
+    end
+  end
+
+  describe "Fx65: Read registers V0 through Vx from memory starting at location I" do
+    test "V0 to V1 (V2 is not included)" do
+      memory =
+        Memory.new()
+        |> Map.replace!(0x200, 0xA)
+        |> Map.replace!(0x200 + 1, 0xB)
+        |> Map.replace!(0x200 + 2, 0xC)
+
+      new_state = execute(%State{memory: memory, i: 0x200}, "F165")
+
+      assert new_state[:v0] == 0xA
+      assert new_state[:v1] == 0xB
+      refute new_state[:v2] == 0xC
+    end
+  end
 end

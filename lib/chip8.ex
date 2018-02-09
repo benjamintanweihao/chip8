@@ -98,7 +98,7 @@ defmodule Chip8 do
   #
   # This instruction is only used on the old computers on which Chip-8 was originally implemented.
   # It is ignored by modern interpreters.
-  def execute(state, <<"0", _rest::size(24)>>) do
+  def execute(state, <<"0", _n1, _n2, _n3>>) do
     state
   end
 
@@ -107,8 +107,8 @@ defmodule Chip8 do
   # Jump to location nnn.
   #
   # The interpreter sets the program counter to nnn.
-  def execute(state, <<"1", nnn :: size(24)>>) do
-    {new_pc, ""} = Integer.parse(<<nnn>>, 16)
+  def execute(state, <<"1", n1, n2, n3>>) do
+    {new_pc, ""} = Integer.parse(<<n1, n2, n3>>, 16)
     %{state | pc: new_pc}
   end
 
@@ -305,8 +305,8 @@ defmodule Chip8 do
   def execute(state, <<"8", x, _y, "6">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-
-    %{state | vF: if((state[vx] &&& 1) == 1, do: 1, else: 0)} |> Map.replace!(vx, div(state[vx], 2))
+    %{state | vF: if((state[vx] &&& 1) == 1, do: 1, else: 0)}
+    |> Map.replace!(vx, div(state[vx], 2))
   end
 
   ###############################################################################################
@@ -320,7 +320,14 @@ defmodule Chip8 do
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vy] - state[vx]
 
-    %{state | vF: if(sub > 0, do: 1, else: 0)} |> Map.replace!(vx, sub)
+    {vF, new_sub} =
+      if sub > 0 do
+        {1, sub}
+      else
+        {0, sub + 256}
+      end
+
+    %{state | vF: vF} |> Map.replace!(vx, new_sub)
   end
 
   ###############################################################################################
@@ -333,7 +340,17 @@ defmodule Chip8 do
     vx = String.to_atom("v" <> <<x>>)
     msb = state[vx] &&& 0x80
 
-    %{state | vF: if(msb == 0x80, do: 1, else: 0)} |> Map.replace!(vx, state[vx] * 2)
+    new_vf = if(msb == 0x80, do: 1, else: 0)
+    vx_doubled = state[vx] * 2
+
+    new_vx =
+      if vx_doubled > 255 do
+        vx_doubled - 256
+      else
+        vx_doubled
+      end
+
+    %{state | vF: new_vf} |> Map.replace!(vx, new_vx)
   end
 
   ###############################################################################################
@@ -507,8 +524,11 @@ defmodule Chip8 do
   def execute(state, <<"F", x, "29">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    if state[vx] in 0..16 do
-      %{state | i: state[vx]}
+    # 16 hexadecimal sprites, 5 bytes each
+    font_mem_locs = 0..(15 * 5) |> Enum.take_every(5)
+
+    if state[vx] in 0..15 do
+      %{state | i: Enum.at(font_mem_locs, state[vx])}
     else
       state
     end
@@ -553,7 +573,9 @@ defmodule Chip8 do
     updated_memory =
       regs
       |> Enum.with_index()
-      |> Enum.reduce(memory, fn {reg, idx} -> Map.replace!(memory, i + idx, state[reg]) end)
+      |> Enum.reduce(memory, fn {reg, idx}, memory ->
+        Map.replace!(memory, i + idx, state[reg])
+      end)
 
     %{state | memory: updated_memory}
   end
@@ -569,7 +591,9 @@ defmodule Chip8 do
 
     regs
     |> Enum.with_index()
-    |> Enum.reduce(state, fn {reg, idx} -> Map.replace!(state, reg, memory[i + idx]) end)
+    |> Enum.reduce(state, fn {reg, idx}, state ->
+      Map.replace!(state, reg, memory[i + idx])
+    end)
   end
 
   defp registers do
