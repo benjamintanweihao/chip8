@@ -417,11 +417,11 @@ defmodule Chip8 do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
 
-    x = state[vx]
-    y = state[vy]
+    start_x = state[vx]
+    start_y = state[vy]
 
     coords_with_pixels =
-      i..(i + height)
+      i..(i + height - 1)
       |> Enum.with_index()
       |> Enum.flat_map(fn {loc, y} ->
         padded_row(memory[loc]) |> Enum.with_index()
@@ -431,9 +431,10 @@ defmodule Chip8 do
     {new_vF, new_display} =
       coords_with_pixels
       |> Enum.reduce({vF, display}, fn {{x, y}, pixel}, {vF, display} ->
-        {prev_pixel, new_display} = get_and_set_pixel(display, x, y + i, pixel)
+        {prev_pixel, new_display} = get_and_set_pixel(display, start_x + x, start_y + y, pixel)
 
-        {prev_pixel ||| pixel, new_display}
+        # Check for colision, and return the new display
+        {vF ||| (prev_pixel &&& pixel), new_display}
       end)
 
     %{state | display: new_display, vF: new_vF}
@@ -596,13 +597,13 @@ defmodule Chip8 do
     end)
   end
 
-  defp registers do
-    [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
-  end
-
-  defp padded_row(value) do
+  def padded_row(value) do
     row = Integer.digits(value, 2)
     List.duplicate(0, 8 - length(row)) ++ row
+  end
+
+  defp registers do
+    [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
   end
 
   defp get_and_set_pixel(display, x, y, value) do

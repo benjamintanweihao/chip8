@@ -192,6 +192,106 @@ defmodule Chip8Test do
     assert %State{v0: 0x1, pc: 0xF00 + 0x1} == execute(%State{v0: 0x1}, "BF00")
   end
 
+  test "padded row" do
+    assert [1, 1, 1, 1, 0, 0, 0, 0] == padded_row(0xF0)
+    assert [1, 0, 0, 1, 0, 0, 0, 0] == padded_row(0x90)
+    assert [0, 1, 1, 0, 0, 0, 0, 0] == padded_row(0x60)
+  end
+
+  describe "Dxyn: Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision" do
+    test "display '0' sprite at (0, 0)" do
+      state = %State{i: 0x0, v0: 0, v1: 0, vF: 0, display: Display.new(), memory: Memory.new()}
+
+      %{display: display, vF: vF} = execute(state, "D005")
+
+      assert display[{0, 0}] == 1
+      assert display[{1, 0}] == 1
+      assert display[{2, 0}] == 1
+      assert display[{3, 0}] == 1
+      assert display[{4, 0}] == 0
+
+      assert display[{0, 1}] == 1
+      assert display[{1, 1}] == 0
+      assert display[{2, 1}] == 0
+      assert display[{3, 1}] == 1
+      assert display[{4, 1}] == 0
+
+      assert display[{0, 2}] == 1
+      assert display[{1, 2}] == 0
+      assert display[{2, 2}] == 0
+      assert display[{3, 2}] == 1
+      assert display[{4, 2}] == 0
+
+      assert display[{0, 3}] == 1
+      assert display[{1, 3}] == 0
+      assert display[{2, 3}] == 0
+      assert display[{3, 3}] == 1
+      assert display[{4, 3}] == 0
+
+      assert display[{0, 4}] == 1
+      assert display[{1, 4}] == 1
+      assert display[{2, 4}] == 1
+      assert display[{3, 4}] == 1
+      assert display[{4, 4}] == 0
+
+      assert vF == 0
+    end
+
+    test "display '1' sprite at (0, 0)" do
+      state = %State{i: 0x5, v0: 0, v1: 0, vF: 0, display: Display.new(), memory: Memory.new()}
+
+      %{display: display, vF: vF} = execute(state, "D005")
+
+      assert display[{0, 0}] == 0
+      assert display[{1, 0}] == 0
+      assert display[{2, 0}] == 1
+      assert display[{3, 0}] == 0
+      assert display[{4, 0}] == 0
+
+      assert display[{0, 1}] == 0
+      assert display[{1, 1}] == 1
+      assert display[{2, 1}] == 1
+      assert display[{3, 1}] == 0
+      assert display[{4, 1}] == 0
+
+      assert display[{0, 2}] == 0
+      assert display[{1, 2}] == 0
+      assert display[{2, 2}] == 1
+      assert display[{3, 2}] == 0
+      assert display[{4, 2}] == 0
+
+      assert display[{0, 3}] == 0
+      assert display[{1, 3}] == 0
+      assert display[{2, 3}] == 1
+      assert display[{3, 3}] == 0
+      assert display[{4, 3}] == 0
+
+      assert display[{0, 4}] == 0
+      assert display[{1, 4}] == 1
+      assert display[{2, 4}] == 1
+      assert display[{3, 4}] == 1
+      assert display[{4, 4}] == 0
+
+      assert vF == 0
+    end
+
+    test "collision: display 0 then 1" do
+      state = %State{v0: 0, v1: 0, vF: 0, display: Display.new(), memory: Memory.new()}
+      # Set I to point to '0' sprite
+      # Draw '0' sprite
+      # Set I to point to '1' sprite
+      # Draw '1' sprite
+      new_state =
+        state
+        |> execute("A000")
+        |> execute("D005")
+        |> execute("A005")
+        |> execute("D005")
+
+      assert new_state.vF == 1
+    end
+  end
+
   test "Fx07: Set Vx = delay timer value" do
     assert %State{vB: 0xFF, dt: 0xFF} == execute(%State{dt: 0xFF}, "FB07")
   end
