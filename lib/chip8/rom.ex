@@ -20,13 +20,8 @@ defmodule Chip8.ROM do
     memory
   end
 
-  defp read(<<intr_1::size(8), intr_2::size(8), rest::binary>>, instructions) do
-    opcode =
-      (intr_1 <<< 8 ||| intr_2)
-      |> Integer.to_string(16)
-      |> String.pad_leading(4, "0")
-
-    read(rest, [opcode | instructions])
+  defp read(<<instr::size(8), rest::binary>>, instructions) do
+    read(rest, [instr | instructions])
   end
 
   defp read(<<>>, instructions) do
