@@ -2,12 +2,24 @@ defmodule Chip8 do
   use GenServer
   use Bitwise
 
+  require Logger
+
   alias __MODULE__.{State, Memory, ROM, Display}
 
   @tick 10
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
+  end
+
+  defp tick do
+    Process.send_after(self(), :tick, @tick)
+  end
+
+  def opcode(instr_1, instr_2) do
+    (instr_1 <<< 8 ||| instr_2)
+    |> Integer.to_string(16)
+    |> String.pad_leading(4, "0")
   end
 
   def init(:ok) do
@@ -17,20 +29,21 @@ defmodule Chip8 do
 
     tick()
 
-    {:ok, %State{memory: memory, display: display, stack: [], pc: 0x200}}
+    {:ok, %State{memory: memory, display: display}}
   end
 
-  def handle_info(:tick, state) do
-    {:ok, opcode} = Map.fetch(state.memory, state.pc)
-    new_state = execute(opcode, state)
+  def handle_info(:tick, %{pc: pc} = state) do
+    {:ok, instr_1} = Map.fetch(state.memory, pc)
+    {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
+
+    opcode = opcode(instr_1, instr_2)
+
+    Logger.info(opcode)
+    new_state = execute(%{state | pc: pc + 2}, opcode)
 
     tick()
 
     {:noreply, new_state}
-  end
-
-  defp tick do
-    Process.send_after(self(), :tick, @tick)
   end
 
   ###########

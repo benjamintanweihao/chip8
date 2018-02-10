@@ -14,14 +14,9 @@ defmodule Chip8Test do
   test "reading the ROM" do
     file_path = Path.expand("../roms/pong.rom", __DIR__)
 
-    [instr_1, instr_2 | _ ] = ROM.load(file_path)
+    [instr_1, instr_2 | _] = ROM.load(file_path)
 
-    opcode =
-      (instr_1 <<< 8 ||| instr_2)
-      |> Integer.to_string(16)
-      |> String.pad_leading(4, "0")
-
-    assert opcode == "6A02"
+    assert opcode(instr_1, instr_2) == "6A02"
   end
 
   test "initialize display" do
@@ -41,10 +36,9 @@ defmodule Chip8Test do
 
     %State{display: display} =
       state
-        |> execute("A005")
-        |> execute("D125")
-        |> execute("00E0")
-
+      |> execute("A005")
+      |> execute("D125")
+      |> execute("00E0")
 
     assert display == Display.new()
   end
