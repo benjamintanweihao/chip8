@@ -1,6 +1,8 @@
 defmodule Chip8.State do
   @behaviour Access
 
+  alias Chip8.Display
+
   defstruct [
     :v0,
     :v1,
@@ -57,7 +59,7 @@ defmodule Chip8.State do
       pc: 0x200,
       sp: 0,
       memory: nil,
-      display: nil,
+      display: Display.new(),
       stack: []
     }
   end

@@ -6,7 +6,7 @@ defmodule Chip8 do
 
   alias __MODULE__.{State, Memory, ROM, Display}
 
-  @tick 10
+  @tick div(1000, 60) # 60 Hz
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -23,13 +23,17 @@ defmodule Chip8 do
   end
 
   def init(:ok) do
-    file_path = Path.expand("../roms/pong.rom", __DIR__)
+    # file_path = Path.expand("../roms/pong.rom", __DIR__)
+    # file_path = Path.expand("../roms/invaders.rom", __DIR__)
+    # file_path = Path.expand("../roms/tetris.rom", __DIR__)
+    # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
+    file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
-    display = Display.new()
+    state = State.new() |> Map.replace!(:memory, memory)
 
     tick()
 
-    {:ok, %State{memory: memory, display: display}}
+    {:ok, state}
   end
 
   def handle_info(:tick, %{pc: pc} = state) do
@@ -40,6 +44,8 @@ defmodule Chip8 do
 
     Logger.info(opcode)
     new_state = execute(%{state | pc: pc + 2}, opcode)
+
+    IO.puts Display.to_string(new_state.display)
 
     tick()
 
@@ -421,8 +427,9 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down
   # position, PC is increased by 2.
-  def execute(state, <<"E", x, "9E">>) do
+  def execute(state, <<"E", x, "9E">> = opcode) do
     # TODO
+    Logger.warn("Not implemented yet: #{opcode}")
     state
   end
 
@@ -432,8 +439,9 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up
   # position, PC is increased by 2.
-  def execute(state, <<"E", x, "A1">>) do
+  def execute(state, <<"E", x, "A1">> = opcode) do
     # TODO
+    Logger.warn("Not implemented yet: #{opcode}")
     state
   end
 
@@ -453,8 +461,9 @@ defmodule Chip8 do
   # Wait for a key press, store the value of the key in Vx.
   #
   # All execution stops until a key is pressed, then the value of that key is stored in Vx.
-  def execute(state, <<"F", x, "0A">>) do
+  def execute(state, <<"F", x, "0A">> = opcode) do
     # TODO
+    Logger.warn("Not implemented yet: #{opcode}")
     state
   end
 
