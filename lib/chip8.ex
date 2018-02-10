@@ -2,47 +2,9 @@ defmodule Chip8 do
   use GenServer
   use Bitwise
 
-  alias __MODULE__.Memory
-  alias __MODULE__.ROM
-  alias __MODULE__.Display
+  alias __MODULE__.{State, Memory, ROM, Display}
 
   @tick 10
-
-  defmodule State do
-    @behaviour Access
-
-    defstruct [
-      :v0,
-      :v1,
-      :v2,
-      :v3,
-      :v4,
-      :v5,
-      :v6,
-      :v7,
-      :v8,
-      :v9,
-      :vA,
-      :vB,
-      :vC,
-      :vD,
-      :vE,
-      :vF,
-      :i,
-      :dt,
-      :st,
-      :pc,
-      :sp,
-      :memory,
-      :display,
-      :stack
-    ]
-
-    defdelegate fetch(a, b), to: Map
-    defdelegate get(a, b, c), to: Map
-    defdelegate get_and_update(a, b, c), to: Map
-    defdelegate pop(a, b), to: Map
-  end
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)

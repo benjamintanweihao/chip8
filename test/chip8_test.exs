@@ -33,9 +33,14 @@ defmodule Chip8Test do
   end
 
   test "00E0: Clear the display" do
-    state = %State{v1: 0x0, v2: 0x0, i: 0, display: Display.new(), memory: Memory.new()}
+    state = %State{v1: 0x0, v2: 0x0, vF: 0, i: 0, display: Display.new(), memory: Memory.new()}
 
-    %State{display: display} = state |> execute("D005") |> execute("00E0")
+    %State{display: display} =
+      state
+        |> execute("A005")
+        |> execute("D125")
+        |> execute("00E0")
+
 
     assert display == Display.new()
   end
@@ -202,7 +207,7 @@ defmodule Chip8Test do
     test "display '0' sprite at (0, 0)" do
       state = %State{i: 0x0, v0: 0, v1: 0, vF: 0, display: Display.new(), memory: Memory.new()}
 
-      %{display: display, vF: vF} = execute(state, "D005")
+      %{display: display, vF: vF} = execute(state, "D015")
 
       assert display[{0, 0}] == 1
       assert display[{1, 0}] == 1
@@ -240,7 +245,7 @@ defmodule Chip8Test do
     test "display '1' sprite at (0, 0)" do
       state = %State{i: 0x5, v0: 0, v1: 0, vF: 0, display: Display.new(), memory: Memory.new()}
 
-      %{display: display, vF: vF} = execute(state, "D005")
+      %{display: display, vF: vF} = execute(state, "D015")
 
       assert display[{0, 0}] == 0
       assert display[{1, 0}] == 0
@@ -284,9 +289,9 @@ defmodule Chip8Test do
       new_state =
         state
         |> execute("A000")
-        |> execute("D005")
+        |> execute("D015")
         |> execute("A005")
-        |> execute("D005")
+        |> execute("D015")
 
       assert new_state.vF == 1
     end
