@@ -15,9 +15,9 @@ defmodule Chip8.Display do
     for y <- 0..31, x <- 0..63 do
       case Map.fetch!(display, {x, y}) do
         1 ->
-          "@"
+          "⬛"
         0 ->
-          "."
+          "⬜"
       end
     end
 

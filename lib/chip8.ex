@@ -24,10 +24,10 @@ defmodule Chip8 do
 
   def init(:ok) do
     # file_path = Path.expand("../roms/pong.rom", __DIR__)
-    # file_path = Path.expand("../roms/invaders.rom", __DIR__)
+    file_path = Path.expand("../roms/invaders.rom", __DIR__)
     # file_path = Path.expand("../roms/tetris.rom", __DIR__)
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
-    file_path = Path.expand("../roms/puzzle.rom", __DIR__)
+    # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
     state = State.new() |> Map.replace!(:memory, memory)
 
@@ -41,7 +41,6 @@ defmodule Chip8 do
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
 
     opcode = opcode(instr_1, instr_2)
-
     Logger.info(opcode)
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
@@ -559,7 +558,7 @@ defmodule Chip8 do
       regs
       |> Enum.with_index()
       |> Enum.reduce(memory, fn {reg, idx}, memory ->
-        Map.replace!(memory, i + idx, state[reg])
+        Map.replace!(memory, rem(i + idx, 4096), state[reg])
       end)
 
     %{state | memory: updated_memory}
@@ -581,6 +580,7 @@ defmodule Chip8 do
     end)
   end
 
+  def padded_row(nil), do: List.duplicate(0, 8)
   def padded_row(value) do
     row = Integer.digits(value, 2)
     List.duplicate(0, 8 - length(row)) ++ row
