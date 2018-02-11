@@ -105,8 +105,8 @@ defmodule Chip8 do
   #
   # The interpreter sets the program counter to the address at the top of the stack, then
   # subtracts 1 from the stack pointer.
-  def execute(state = %{stack: [top | bottom], sp: sp}, "00EE") do
-    %{state | pc: top, sp: sp - 1, stack: bottom}
+  def execute(state = %{stack: [_top, next_top | bottom], sp: sp}, "00EE") do
+    %{state | pc: next_top, sp: sp - 1, stack: bottom}
   end
 
   ###############################################################################################
@@ -555,7 +555,7 @@ defmodule Chip8 do
   def execute(state, <<"F", x, "18">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    System.cmd("play", ["-n", "synth", "0.1", "sin", "200"])
+    # System.cmd("play", ["-n", "synth", "0.1", "sin", "200"])
 
     %{state | st: state[vx]}
   end
