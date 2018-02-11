@@ -555,6 +555,8 @@ defmodule Chip8 do
   def execute(state, <<"F", x, "18">>) do
     vx = String.to_atom("v" <> <<x>>)
 
+    System.cmd("play", ["-n", "synth", "0.1", "sin", "200"])
+
     %{state | st: state[vx]}
   end
 
