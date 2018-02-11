@@ -28,7 +28,6 @@ defmodule Chip8.State do
     :memory,
     :display,
     :stack,
-    :renderer,
     :io,
   ]
 
@@ -63,7 +62,6 @@ defmodule Chip8.State do
       memory: nil,
       display: Display.new(),
       stack: [],
-      renderer: nil,
       io: IO.new(),
     }
   end

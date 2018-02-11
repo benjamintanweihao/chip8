@@ -26,12 +26,12 @@ defmodule Chip8 do
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
     # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
-    renderer = Renderer.Wx.start_link(self())
+
+    # TODO: Make this injectable?
+    Renderer.Wx.start_link(self())
 
     state =
-      State.new()
-      |> Map.replace!(:memory, memory)
-      |> Map.replace!(:renderer, renderer)
+      State.new() |> Map.replace!(:memory, memory)
 
     tick()
 
@@ -105,8 +105,8 @@ defmodule Chip8 do
   #
   # The interpreter sets the program counter to the address at the top of the stack, then
   # subtracts 1 from the stack pointer.
-  def execute(state = %{stack: [_top, next_top | bottom], sp: sp}, "00EE") do
-    %{state | pc: next_top, sp: sp - 1, stack: bottom}
+  def execute(state = %{stack: [top | bottom], sp: sp}, "00EE") do
+    %{state | pc: top, sp: sp - 1, stack: bottom}
   end
 
   ###############################################################################################
@@ -313,10 +313,10 @@ defmodule Chip8 do
     sub = state[vx] - state[vy]
 
     {vF, new_sub} =
-      if sub > 0 do
-        {1, sub}
-      else
+      if sub < 0 do
         {0, sub + 256}
+      else
+        {1, sub}
       end
 
     %{state | vF: vF} |> Map.replace!(vx, new_sub)
@@ -331,7 +331,7 @@ defmodule Chip8 do
   def execute(state, <<"8", x, _y, "6">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    %{state | vF: if((state[vx] &&& 1) == 1, do: 1, else: 0)}
+    %{state | vF: if((state[vx] &&& 0x1) == 1, do: 1, else: 0)}
     |> Map.replace!(vx, div(state[vx], 2))
   end
 
@@ -347,10 +347,10 @@ defmodule Chip8 do
     sub = state[vy] - state[vx]
 
     {vF, new_sub} =
-      if sub > 0 do
-        {1, sub}
-      else
+      if sub < 0 do
         {0, sub + 256}
+      else
+        {1, sub}
       end
 
     %{state | vF: vF} |> Map.replace!(vx, new_sub)
@@ -459,8 +459,20 @@ defmodule Chip8 do
       |> Enum.reduce({vF, display}, fn {{x, y}, pixel}, {vF, display} ->
         {prev_pixel, new_display} = get_and_set_pixel(display, start_x + x, start_y + y, pixel)
 
-        # Check for colision, and return the new display
-        {vF ||| (prev_pixel &&& pixel), new_display}
+        # Check for collision
+        cond do
+          # pixel was erased before
+          vF == 1 ->
+            {1, new_display}
+
+          # pixel was erased
+          prev_pixel == 1 and pixel == 0 ->
+            {1, new_display}
+
+          # no pixels were harmed during the fold.
+          true ->
+            {0, new_display}
+        end
       end)
 
     %{state | display: new_display, vF: new_vF}
@@ -580,14 +592,7 @@ defmodule Chip8 do
   def execute(state, <<"F", x, "29">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    # 16 hexadecimal sprites, 5 bytes each
-    font_mem_locs = 0..(15 * 5) |> Enum.take_every(5)
-
-    if state[vx] in 0..15 do
-      %{state | i: Enum.at(font_mem_locs, state[vx])}
-    else
-      state
-    end
+    %{state | i: state[vx] * 5}
   end
 
   ###############################################################################################
@@ -668,7 +673,18 @@ defmodule Chip8 do
   end
 
   defp get_and_set_pixel(display, x, y, value) do
-    coords = {rem(x, 64), rem(y, 32)}
-    Map.get_and_update(display, coords, fn prev_value -> {prev_value, value ^^^ prev_value} end)
+    new_x = if x > 63 do
+      x - 64
+    else
+      x
+    end
+
+    new_y = if y > 31 do
+      y - 32
+    else
+      y
+    end
+
+    Map.get_and_update(display, {new_x, new_y}, fn prev_value -> {prev_value, prev_value ^^^ value} end)
   end
 end
