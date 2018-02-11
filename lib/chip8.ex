@@ -4,9 +4,10 @@ defmodule Chip8 do
 
   require Logger
 
-  alias __MODULE__.{State, Memory, ROM, Display}
+  alias __MODULE__.{State, Memory, ROM, Display, Renderer}
 
-  @tick div(1000, 60) # 60 Hz
+  # 60 Hz
+  @tick div(1000, 60)
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -44,7 +45,7 @@ defmodule Chip8 do
     Logger.info(opcode)
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    IO.puts Display.to_string(new_state.display)
+    Renderer.Text.render(new_state.display)
 
     tick()
 
@@ -581,6 +582,7 @@ defmodule Chip8 do
   end
 
   def padded_row(nil), do: List.duplicate(0, 8)
+
   def padded_row(value) do
     row = Integer.digits(value, 2)
     List.duplicate(0, 8 - length(row)) ++ row
