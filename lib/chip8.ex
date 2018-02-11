@@ -30,7 +30,12 @@ defmodule Chip8 do
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
     # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
-    state = State.new() |> Map.replace!(:memory, memory)
+    renderer = Renderer.Wx.start_link()
+
+    state =
+      State.new()
+      |> Map.replace!(:memory, memory)
+      |> Map.replace!(:renderer, renderer)
 
     tick()
 
@@ -45,7 +50,7 @@ defmodule Chip8 do
     Logger.info(opcode)
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    Renderer.Text.render(new_state.display)
+    Renderer.Wx.render(new_state.display)
 
     tick()
 
