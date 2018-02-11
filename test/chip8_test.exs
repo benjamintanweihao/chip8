@@ -86,7 +86,7 @@ defmodule Chip8Test do
   test "7xkk: Set Vx = Vx + kk" do
     state = %State{vC: 0xAB}
 
-    assert %State{vC: 0xAB + 0xDE} == execute(state, "7CDE")
+    assert %State{vC: 0xAB + 0xDE - 256} == execute(state, "7CDE")
   end
 
   test "8xy0: Set Vx = Vy" do

@@ -44,6 +44,7 @@ defmodule Chip8 do
 
     opcode = opcode(instr_1, instr_2)
     Logger.info(opcode)
+
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
     Renderer.Wx.render(new_state.display)
@@ -213,7 +214,16 @@ defmodule Chip8 do
     val = state[reg]
     {kk, ""} = Integer.parse(<<k1, k2>>, 16)
 
-    Map.replace!(state, reg, val + kk)
+    sum = val + kk
+
+    new_val =
+      if sum > 255 do
+        sum - 256
+      else
+        sum
+      end
+
+    Map.replace!(state, reg, new_val)
   end
 
   ###############################################################################################
@@ -519,6 +529,8 @@ defmodule Chip8 do
   #
   # All execution stops until a key is pressed, then the value of that key is stored in Vx.
   def execute(state, <<"F", x, "0A">> = opcode) do
+    _vx = String.to_atom("v" <> <<x>>)
+
     # TODO
     Logger.warn("Not implemented yet: #{opcode}")
     state
@@ -654,7 +666,6 @@ defmodule Chip8 do
   end
 
   defp get_and_set_pixel(display, x, y, value) do
-    Logger.info("[Pixel] (#{x}, #{y})")
     coords = {rem(x, 64), rem(y, 32)}
     Map.get_and_update(display, coords, fn prev_value -> {prev_value, value ^^^ prev_value} end)
   end
