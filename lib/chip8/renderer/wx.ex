@@ -11,11 +11,11 @@ defmodule Chip8.Renderer.Wx do
     y: 32
   }
 
-  def start_link do
-    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
+  def start_link(game) do
+    GenServer.start_link(__MODULE__, game, name: __MODULE__)
   end
 
-  def init(:ok) do
+  def init(game) do
     wx = :wx.new()
 
     frame =
@@ -33,7 +33,7 @@ defmodule Chip8.Renderer.Wx do
       :ok = :wxFrame.connect(panel, evt)
     end
 
-    {:ok, %{panel: panel}}
+    {:ok, %{game: game, panel: panel}}
   end
 
   def render(display) do
@@ -46,26 +46,32 @@ defmodule Chip8.Renderer.Wx do
     {:reply, :ok, state}
   end
 
-  def handle_info({:wx, _, _, _, {:wxKey, :char, _, _, key_char, _, _, _, _, _, _, _, _}}, state) do
+  def handle_info(
+        {:wx, _, _, _, {:wxKey, :char, _, _, key_char, _, _, _, _, _, _, _, _}},
+        %{game: game} = state
+      ) do
     Logger.info("Char: #{key_char} #{<<key_char>>}")
+    send(game, {:char, map_key(<<key_char>>)})
 
     {:noreply, state}
   end
 
   def handle_info(
         {:wx, _, _, _, {:wxKey, :key_up, _, _, key_char, _, _, _, _, _, _, _, _}},
-        state
+        %{game: game} = state
       ) do
     Logger.info("Key Up: #{key_char} #{<<key_char>>}")
+    send(game, {:key_up, map_key(<<key_char>>)})
 
     {:noreply, state}
   end
 
   def handle_info(
         {:wx, _, _, _, {:wxKey, :key_down, _, _, key_char, _, _, _, _, _, _, _, _}},
-        state
+        %{game: game} = state
       ) do
     Logger.info("Key Down: #{key_char} #{<<key_char>>}")
+    send(game, {:key_down, map_key(<<key_char>>)})
 
     {:noreply, state}
   end
@@ -107,4 +113,22 @@ defmodule Chip8.Renderer.Wx do
   defp brush_for(1), do: :wxBrush.new({0, 255, 0, 255})
   # Black
   defp brush_for(0), do: :wxBrush.new({0, 0, 0, 255})
+
+  defp map_key("1"), do: "1"
+  defp map_key("2"), do: "2"
+  defp map_key("3"), do: "3"
+  defp map_key("4"), do: "C"
+  defp map_key("Q"), do: "4"
+  defp map_key("W"), do: "5"
+  defp map_key("E"), do: "6"
+  defp map_key("R"), do: "D"
+  defp map_key("A"), do: "7"
+  defp map_key("S"), do: "8"
+  defp map_key("D"), do: "9"
+  defp map_key("F"), do: "E"
+  defp map_key("Z"), do: "A"
+  defp map_key("X"), do: "0"
+  defp map_key("C"), do: "B"
+  defp map_key("V"), do: "F"
+  defp map_key(key), do: key
 end

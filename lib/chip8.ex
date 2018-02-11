@@ -13,10 +13,6 @@ defmodule Chip8 do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
-  defp tick do
-    Process.send_after(self(), :tick, @tick)
-  end
-
   def opcode(instr_1, instr_2) do
     (instr_1 <<< 8 ||| instr_2)
     |> Integer.to_string(16)
@@ -30,7 +26,7 @@ defmodule Chip8 do
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
     # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
-    renderer = Renderer.Wx.start_link()
+    renderer = Renderer.Wx.start_link(self())
 
     state =
       State.new()
@@ -56,6 +52,40 @@ defmodule Chip8 do
 
     {:noreply, new_state}
   end
+
+  def handle_info({:key_up, key_char}, %{io: io} = state) do
+    key_char_atom = String.to_atom(key_char)
+    new_io =
+      case Map.fetch(io, key_char_atom) do
+        {:ok, _} ->
+          IO.inspect Map.update!(io, key_char_atom, fn(_) -> false end)
+
+        _ ->
+          io
+      end
+
+    {:noreply, %{state | io: new_io}}
+  end
+
+  def handle_info({:key_down, key_char}, %{io: io} = state) do
+    key_char_atom = String.to_atom(key_char)
+    new_io =
+      case Map.fetch(io, key_char_atom) do
+        {:ok, _} ->
+          IO.inspect Map.update!(io, key_char_atom, fn(_) -> true end)
+
+        _ ->
+          io
+      end
+
+    {:noreply, %{state | io: new_io}}
+  end
+
+  def handle_info(msg, state) do
+    Logger.warn("Unhandled: #{inspect msg}")
+    {:noreply, state}
+  end
+
 
   ###########
   # Opcodes #
@@ -432,10 +462,21 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down
   # position, PC is increased by 2.
-  def execute(state, <<"E", x, "9E">> = opcode) do
-    # TODO
-    Logger.warn("Not implemented yet: #{opcode}")
-    state
+  def execute(%{io: io, pc: pc} = state, <<"E", x, "9E">>) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    key_char_atom =
+      state[vx]
+      |> Integer.to_string(16)
+      |> String.to_atom()
+
+    Logger.info("Skip instruction if #{key_char_atom} is pressed")
+
+    if io[key_char_atom] do
+      %{state | pc: pc + 2}
+    else
+      state
+    end
   end
 
   ###############################################################################################
@@ -444,10 +485,21 @@ defmodule Chip8 do
   #
   # Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up
   # position, PC is increased by 2.
-  def execute(state, <<"E", x, "A1">> = opcode) do
-    # TODO
-    Logger.warn("Not implemented yet: #{opcode}")
-    state
+  def execute(%{io: io, pc: pc} = state, <<"E", x, "A1">>) do
+    vx = String.to_atom("v" <> <<x>>)
+
+    key_char_atom =
+      state[vx]
+      |> Integer.to_string(16)
+      |> String.to_atom()
+
+    Logger.info("Skip instruction if #{key_char_atom} is not pressed")
+
+    if io[key_char_atom] == false do
+      state
+    else
+      %{state | pc: pc + 2}
+    end
   end
 
   ###############################################################################################
@@ -593,11 +645,16 @@ defmodule Chip8 do
     List.duplicate(0, 8 - length(row)) ++ row
   end
 
+  defp tick do
+    Process.send_after(self(), :tick, @tick)
+  end
+
   defp registers do
     [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
   end
 
   defp get_and_set_pixel(display, x, y, value) do
+    Logger.info("[Pixel] (#{x}, #{y})")
     coords = {rem(x, 64), rem(y, 32)}
     Map.get_and_update(display, coords, fn prev_value -> {prev_value, value ^^^ prev_value} end)
   end

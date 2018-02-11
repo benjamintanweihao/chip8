@@ -1,7 +1,7 @@
 defmodule Chip8.State do
   @behaviour Access
 
-  alias Chip8.Display
+  alias Chip8.{Display, IO}
 
   defstruct [
     :v0,
@@ -28,7 +28,8 @@ defmodule Chip8.State do
     :memory,
     :display,
     :stack,
-    :renderer
+    :renderer,
+    :io,
   ]
 
   defdelegate fetch(a, b), to: Map
@@ -62,7 +63,8 @@ defmodule Chip8.State do
       memory: nil,
       display: Display.new(),
       stack: [],
-      renderer: nil
+      renderer: nil,
+      io: IO.new(),
     }
   end
 end

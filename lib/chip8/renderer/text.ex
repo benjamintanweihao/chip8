@@ -8,7 +8,6 @@ defmodule Chip8.Renderer.Text do
         case Map.fetch!(display, {x, y}) do
           1 ->
             "⬛"
-
           0 ->
             "⬜"
         end
