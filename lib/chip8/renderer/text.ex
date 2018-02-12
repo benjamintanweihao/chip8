@@ -1,6 +1,16 @@
 defmodule Chip8.Renderer.Text do
   @behaviour Chip8.Renderer
 
+  use GenServer
+
+  def start_link(game) do
+    GenServer.start_link(__MODULE__, game, name: __MODULE__)
+  end
+
+  def init(game) do
+    {:ok, game}
+  end
+
   def render(display) do
     concatentated =
       for y <- 0..31,

@@ -4,7 +4,7 @@ defmodule Chip8 do
 
   require Logger
 
-  alias __MODULE__.{State, Memory, ROM, Display, Renderer}
+  alias __MODULE__.{State, Memory, ROM, Display}
 
   # 60 Hz
   @tick div(1000, 60)
@@ -21,24 +21,26 @@ defmodule Chip8 do
 
   def init(:ok) do
     # file_path = Path.expand("../roms/pong.rom", __DIR__)
-    file_path = Path.expand("../roms/invaders.rom", __DIR__)
-    # file_path = Path.expand("../roms/tetris.rom", __DIR__)
+    # file_path = Path.expand("../roms/invaders.rom", __DIR__)
+    file_path = Path.expand("../roms/tetris.rom", __DIR__)
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
     # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
     memory = ROM.load_into_memory(file_path, Memory.new())
 
-    # TODO: Make this injectable?
-    Renderer.Wx.start_link(self())
+    renderer = Application.get_env(:chip8, :renderer)
+    renderer.start_link(self())
 
     state =
-      State.new() |> Map.replace!(:memory, memory)
+      State.new()
+        |> Map.replace!(:memory, memory)
+        |> Map.replace!(:renderer, renderer)
 
     tick()
 
     {:ok, state}
   end
 
-  def handle_info(:tick, %{pc: pc, dt: dt} = state) do
+  def handle_info(:tick, %{pc: pc, dt: dt, renderer: renderer} = state) do
     {:ok, instr_1} = Map.fetch(state.memory, pc)
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
 
@@ -47,7 +49,7 @@ defmodule Chip8 do
 
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    Renderer.Wx.render(new_state.display)
+    renderer.render(new_state.display)
 
     tick()
 
