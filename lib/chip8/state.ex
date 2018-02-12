@@ -29,7 +29,7 @@ defmodule Chip8.State do
     :display,
     :stack,
     :io,
-    :renderer,
+    :renderer
   ]
 
   defdelegate fetch(a, b), to: Map
@@ -64,7 +64,7 @@ defmodule Chip8.State do
       display: Display.new(),
       stack: [],
       io: IO.new(),
-      renderer: nil,
+      renderer: nil
     }
   end
 end

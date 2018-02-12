@@ -130,5 +130,9 @@ defmodule Chip8.Renderer.Wx do
   defp map_key("X"), do: "0"
   defp map_key("C"), do: "B"
   defp map_key("V"), do: "F"
-  defp map_key(key), do: key
+
+  defp map_key(key) do
+    Logger.warn("Unhandled key: #{key}")
+    key
+  end
 end
