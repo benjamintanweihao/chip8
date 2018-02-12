@@ -38,7 +38,7 @@ defmodule Chip8 do
     {:ok, state}
   end
 
-  def handle_info(:tick, %{pc: pc} = state) do
+  def handle_info(:tick, %{pc: pc, dt: dt} = state) do
     {:ok, instr_1} = Map.fetch(state.memory, pc)
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
 
@@ -51,7 +51,7 @@ defmodule Chip8 do
 
     tick()
 
-    {:noreply, new_state}
+    {:noreply, %{new_state | dt: max(dt - 1, 0)}}
   end
 
   def handle_info({:key_up, key_char}, %{io: io} = state) do
