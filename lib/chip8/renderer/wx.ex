@@ -27,6 +27,7 @@ defmodule Chip8.Renderer.Wx do
       )
 
     panel = :wxPanel.new(frame)
+    :wxPanel.setBackgroundColour(panel, black())
     :wxFrame.show(frame)
 
     for evt <- [:char, :key_down, :key_up, :close_window] do
@@ -36,12 +37,12 @@ defmodule Chip8.Renderer.Wx do
     {:ok, %{game: game, panel: panel}}
   end
 
-  def render(display) do
-    GenServer.call(__MODULE__, {:render, display})
+  def render(prev_display, new_display) do
+    GenServer.call(__MODULE__, {:render, prev_display, new_display})
   end
 
-  def handle_call({:render, display}, _from, state) do
-    do_render(display, state)
+  def handle_call({:render, prev_display, new_display}, _from, state) do
+    do_render(prev_display, new_display, state)
 
     {:reply, :ok, state}
   end
@@ -82,22 +83,27 @@ defmodule Chip8.Renderer.Wx do
     {:noreply, state}
   end
 
-  defp do_render(display, %{panel: panel}) do
+  defp do_render(prev_display, new_display, %{panel: panel}) do
     dc = :wxPaintDC.new(panel)
     pen = :wxPen.new({0, 0, 0, 255})
     canvas = :wxGraphicsContext.create(dc)
 
     :wxGraphicsContext.setPen(canvas, pen)
 
-    draw_board(canvas, display)
+    draw_board(canvas, prev_display, new_display)
 
     :wxPaintDC.destroy(dc)
   end
 
-  defp draw_board(canvas, display) do
+  defp draw_board(canvas, prev_display, new_display) do
     for y <- 0..(@board_size.y - 1) do
       for x <- 0..(@board_size.x - 1) do
-        draw_square(canvas, x, y, brush_for(Map.fetch!(display, {x, y})))
+        old_pixel = Map.fetch!(prev_display, {x, y})
+        new_pixel = Map.fetch!(new_display, {x, y})
+        # Make sure that we really need to paint this pixel
+        if old_pixel != new_pixel do
+          draw_square(canvas, x, y, brush_for(new_pixel))
+        end
       end
     end
   end
@@ -109,10 +115,12 @@ defmodule Chip8.Renderer.Wx do
     :wxGraphicsContext.drawRectangle(canvas, true_x, true_y, @cell_size, @cell_size)
   end
 
+  defp black, do: {0, 0, 0, 255}
+
   # Green
   defp brush_for(1), do: :wxBrush.new({0, 255, 0, 255})
   # Black
-  defp brush_for(0), do: :wxBrush.new({0, 0, 0, 255})
+  defp brush_for(0), do: :wxBrush.new(black())
 
   defp map_key("1"), do: "1"
   defp map_key("2"), do: "2"

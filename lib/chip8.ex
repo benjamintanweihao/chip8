@@ -39,7 +39,7 @@ defmodule Chip8 do
     {:ok, state}
   end
 
-  def handle_info(:tick, %{pc: pc, dt: dt, renderer: renderer} = state) do
+  def handle_info(:tick, %{pc: pc, dt: dt, renderer: renderer, display: prev_display} = state) do
     {:ok, instr_1} = Map.fetch(state.memory, pc)
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
 
@@ -48,7 +48,7 @@ defmodule Chip8 do
 
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    renderer.render(new_state.display)
+    renderer.render(prev_display, new_state.display)
 
     tick()
 

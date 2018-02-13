@@ -11,11 +11,11 @@ defmodule Chip8.Renderer.Text do
     {:ok, game}
   end
 
-  def render(display) do
+  def render(_prev_display, new_display) do
     concatentated =
       for y <- 0..31,
           x <- 0..63 do
-        case Map.fetch!(display, {x, y}) do
+        case Map.fetch!(new_display, {x, y}) do
           1 ->
             "⬛"
 
