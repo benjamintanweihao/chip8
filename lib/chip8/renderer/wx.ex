@@ -12,7 +12,10 @@ defmodule Chip8.Renderer.Wx do
   }
 
   def start_link(game) do
-    GenServer.start_link(__MODULE__, game, name: __MODULE__)
+    # GenServer.start_link(__MODULE__, game, name: __MODULE__)
+    {:wx_ref, 35, :wxFrame, pid} = :wx_object.start_link(__MODULE__, game, [])
+    Process.register(pid, __MODULE__)
+    {:ok, pid}
   end
 
   def init(game) do
@@ -28,13 +31,15 @@ defmodule Chip8.Renderer.Wx do
 
     panel = :wxPanel.new(frame)
     :wxPanel.setBackgroundColour(panel, black())
-    :wxFrame.show(frame)
+    :wxPanel.connect(panel, :paint, [:callback])
 
     for evt <- [:char, :key_down, :key_up, :close_window] do
       :ok = :wxFrame.connect(panel, evt)
     end
 
-    {:ok, %{game: game, panel: panel}}
+    :wxFrame.show(frame)
+
+    {frame, %{game: game, panel: panel}}
   end
 
   def render(prev_display, new_display) do
@@ -47,7 +52,7 @@ defmodule Chip8.Renderer.Wx do
     {:reply, :ok, state}
   end
 
-  def handle_info(
+  def handle_event(
         {:wx, _, _, _, {:wxKey, :char, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
       ) do
@@ -57,7 +62,7 @@ defmodule Chip8.Renderer.Wx do
     {:noreply, state}
   end
 
-  def handle_info(
+  def handle_event(
         {:wx, _, _, _, {:wxKey, :key_up, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
       ) do
@@ -67,7 +72,7 @@ defmodule Chip8.Renderer.Wx do
     {:noreply, state}
   end
 
-  def handle_info(
+  def handle_event(
         {:wx, _, _, _, {:wxKey, :key_down, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
       ) do
@@ -75,6 +80,10 @@ defmodule Chip8.Renderer.Wx do
     send(game, {:key_down, map_key(<<key_char>>)})
 
     {:noreply, state}
+  end
+
+  def handle_sync_event({:wx, _, panel, [], {:wxPaint, :paint}}, _, state) do
+    :ok
   end
 
   def handle_info(msg, state) do
