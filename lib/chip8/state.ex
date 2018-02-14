@@ -30,7 +30,8 @@ defmodule Chip8.State do
     :stack,
     :io,
     :renderer,
-    :draw?
+    :draw?,
+    :running?
   ]
 
   defdelegate fetch(a, b), to: Map
@@ -66,7 +67,8 @@ defmodule Chip8.State do
       stack: [],
       io: IO.new(),
       renderer: nil,
-      draw?: false
+      draw?: false,
+      running?: true
     }
   end
 end

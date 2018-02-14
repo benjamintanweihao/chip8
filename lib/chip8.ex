@@ -39,22 +39,41 @@ defmodule Chip8 do
     {:ok, state}
   end
 
-  def handle_info(:tick, %{pc: pc, dt: dt, renderer: renderer, display: prev_display} = state) do
+  def handle_info(
+        :tick,
+        %{pc: pc, dt: dt, renderer: renderer, display: prev_display, running?: running} = state
+      ) do
     {:ok, instr_1} = Map.fetch(state.memory, pc)
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
 
     opcode = opcode(instr_1, instr_2)
     Logger.info(opcode)
 
-    new_state = execute(%{state | pc: pc + 2}, opcode)
+    new_state =
+      case running do
+        true ->
+          new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    if new_state.draw? do
-      renderer.render(prev_display, new_state.display)
-    end
+          if new_state.draw? do
+            renderer.render(prev_display, new_state.display)
+          end
+
+          %{new_state | dt: max(dt - 1, 0), draw?: false}
+
+        _ ->
+          %{state | draw?: false}
+      end
 
     tick()
 
-    {:noreply, %{new_state | dt: max(dt - 1, 0), draw?: false}}
+    {:noreply, new_state}
+  end
+
+  def handle_info({:key_up, key_char}, %{running?: {false, vx}} = state) do
+    val = Integer.parse(key_char, 16)
+    new_state = Map.replace!(state, vx, val)
+
+    %{new_state | running?: true}
   end
 
   def handle_info({:key_up, key_char}, %{io: io} = state) do
@@ -362,6 +381,7 @@ defmodule Chip8 do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vy] - state[vx]
+    false
 
     {vF, new_sub} =
       if sub < 0 do
@@ -553,12 +573,10 @@ defmodule Chip8 do
 
   All execution stops until a key is pressed, then the value of that key is stored in Vx.
   """
-  def execute(state, <<"F", x, "0A">> = opcode) do
-    _vx = String.to_atom("v" <> <<x>>)
+  def execute(state, <<"F", x, "0A">>) do
+    vx = String.to_atom("v" <> <<x>>)
 
-    # TODO
-    Logger.warn("Not implemented yet: #{opcode}")
-    state
+    %{state | running?: {false, vx}}
   end
 
   @doc """

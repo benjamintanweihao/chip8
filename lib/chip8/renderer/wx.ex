@@ -31,7 +31,6 @@ defmodule Chip8.Renderer.Wx do
 
     panel = :wxPanel.new(frame)
     :wxPanel.setBackgroundColour(panel, black())
-    :wxPanel.connect(panel, :paint, [:callback])
 
     for evt <- [:char, :key_down, :key_up, :close_window] do
       :ok = :wxFrame.connect(panel, evt)
@@ -80,10 +79,6 @@ defmodule Chip8.Renderer.Wx do
     send(game, {:key_down, map_key(<<key_char>>)})
 
     {:noreply, state}
-  end
-
-  def handle_sync_event({:wx, _, panel, [], {:wxPaint, :paint}}, _, state) do
-    :ok
   end
 
   def handle_info(msg, state) do
