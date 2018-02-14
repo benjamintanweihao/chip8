@@ -6,7 +6,7 @@ defmodule Chip8 do
 
   alias __MODULE__.{State, Memory, ROM, Display}
 
-  @tick 10
+  @tick 0
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -24,8 +24,8 @@ defmodule Chip8 do
     # file_path = Path.expand("../roms/tetris.rom", __DIR__)
     # file_path = Path.expand("../roms/sequenceshoot.rom", __DIR__)
     # file_path = Path.expand("../roms/puzzle.rom", __DIR__)
-    memory = ROM.load_into_memory(file_path, Memory.new())
 
+    memory = ROM.load_into_memory(file_path, Memory.new())
     renderer = Application.get_env(:chip8, :renderer)
     renderer.start_link(self())
 

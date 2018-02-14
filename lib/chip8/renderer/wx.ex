@@ -1,7 +1,6 @@
 defmodule Chip8.Renderer.Wx do
   @behaviour Chip8.Renderer
 
-  use GenServer
   use Bitwise
   require Logger
 
@@ -12,7 +11,6 @@ defmodule Chip8.Renderer.Wx do
   }
 
   def start_link(game) do
-    # GenServer.start_link(__MODULE__, game, name: __MODULE__)
     {:wx_ref, 35, :wxFrame, pid} = :wx_object.start_link(__MODULE__, game, [])
     Process.register(pid, __MODULE__)
     {:ok, pid}
@@ -25,12 +23,13 @@ defmodule Chip8.Renderer.Wx do
       :wxFrame.new(
         wx,
         -1,
-        "CHIP 8",
+        "CHIP-8",
         size: {@board_size.x * @cell_size, @board_size.y * @cell_size}
       )
 
     panel = :wxPanel.new(frame)
     :wxPanel.setBackgroundColour(panel, black())
+    :wxPanel.setDoubleBuffered(panel, true)
 
     for evt <- [:char, :key_down, :key_up, :close_window] do
       :ok = :wxFrame.connect(panel, evt)
@@ -38,15 +37,22 @@ defmodule Chip8.Renderer.Wx do
 
     :wxFrame.show(frame)
 
-    {frame, %{game: game, panel: panel}}
+    dc = :wxPaintDC.new(panel)
+    pen = :wxPen.new({0, 0, 0, 255})
+    canvas = :wxGraphicsContext.create(dc)
+    :wxGraphicsContext.setPen(canvas, pen)
+
+    {frame, %{game: game, panel: panel, canvas: canvas, frame: frame, dc: dc}}
   end
 
   def render(prev_display, new_display) do
     GenServer.call(__MODULE__, {:render, prev_display, new_display})
   end
 
-  def handle_call({:render, prev_display, new_display}, _from, state) do
-    do_render(prev_display, new_display, state)
+  def handle_call({:render, prev_display, new_display}, _from, %{canvas: canvas} = state) do
+    :wx.batch(fn ->
+      draw_board(prev_display, new_display, canvas)
+    end)
 
     {:reply, :ok, state}
   end
@@ -81,25 +87,13 @@ defmodule Chip8.Renderer.Wx do
     {:noreply, state}
   end
 
-  def handle_info(msg, state) do
-    Logger.info("Unhandled: #{msg}")
+  # TODO: Detect close event
+  # def terminate(_reason, %{dc: dc, frame: frame}) do
+  #   :wxPaintDC.destroy(dc)
+  #   :wxFrame.destroy(frame)
+  # end
 
-    {:noreply, state}
-  end
-
-  defp do_render(prev_display, new_display, %{panel: panel}) do
-    dc = :wxPaintDC.new(panel)
-    pen = :wxPen.new({0, 0, 0, 255})
-    canvas = :wxGraphicsContext.create(dc)
-
-    :wxGraphicsContext.setPen(canvas, pen)
-
-    draw_board(canvas, prev_display, new_display)
-
-    :wxPaintDC.destroy(dc)
-  end
-
-  defp draw_board(canvas, prev_display, new_display) do
+  defp draw_board(prev_display, new_display, canvas) do
     for y <- 0..(@board_size.y - 1) do
       for x <- 0..(@board_size.x - 1) do
         old_pixel = Map.fetch!(prev_display, {x, y})
@@ -120,10 +114,9 @@ defmodule Chip8.Renderer.Wx do
   end
 
   defp black, do: {0, 0, 0, 255}
+  defp green, do: {0, 255, 0, 255}
 
-  # Green
-  defp brush_for(1), do: :wxBrush.new({0, 255, 0, 255})
-  # Black
+  defp brush_for(1), do: :wxBrush.new(green())
   defp brush_for(0), do: :wxBrush.new(black())
 
   defp map_key("1"), do: "1"
