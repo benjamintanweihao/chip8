@@ -6,7 +6,9 @@ defmodule Chip8 do
 
   alias __MODULE__.{State, Memory, ROM, Display}
 
-  @tick 0
+  @tick 2
+
+  @registers [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -41,7 +43,8 @@ defmodule Chip8 do
 
   def handle_info(
         :tick,
-        %{pc: pc, dt: dt, renderer: renderer, display: prev_display, running?: running} = state
+        %{pc: pc, dt: dt, st: st, renderer: renderer, display: prev_display, running?: running} =
+          state
       ) do
     {:ok, instr_1} = Map.fetch(state.memory, pc)
     {:ok, instr_2} = Map.fetch(state.memory, pc + 1)
@@ -58,7 +61,11 @@ defmodule Chip8 do
             renderer.render(prev_display, new_state.display)
           end
 
-          %{new_state | dt: max(dt - 1, 0), draw?: false}
+          if st > 0 do
+            System.cmd("play", ["-n", "synth", "0.1", "sin", "500"])
+          end
+
+          %{new_state | dt: max(dt - 1, 0), st: max(st - 1, 0), draw?: false}
 
         _ ->
           %{state | draw?: false}
@@ -82,7 +89,7 @@ defmodule Chip8 do
     new_io =
       case Map.fetch(io, key_char_atom) do
         {:ok, _} ->
-          IO.inspect(Map.update!(io, key_char_atom, fn _ -> false end))
+          Map.update!(io, key_char_atom, fn _ -> false end)
 
         _ ->
           io
@@ -97,7 +104,7 @@ defmodule Chip8 do
     new_io =
       case Map.fetch(io, key_char_atom) do
         {:ok, _} ->
-          IO.inspect(Map.update!(io, key_char_atom, fn _ -> true end))
+          Map.update!(io, key_char_atom, fn _ -> true end)
 
         _ ->
           io
@@ -381,7 +388,6 @@ defmodule Chip8 do
     vx = String.to_atom("v" <> <<x>>)
     vy = String.to_atom("v" <> <<y>>)
     sub = state[vy] - state[vx]
-    false
 
     {vF, new_sub} =
       if sub < 0 do
@@ -600,8 +606,6 @@ defmodule Chip8 do
   def execute(state, <<"F", x, "18">>) do
     vx = String.to_atom("v" <> <<x>>)
 
-    # System.cmd("play", ["-n", "synth", "0.1", "sin", "200"])
-
     %{state | st: state[vx]}
   end
 
@@ -666,7 +670,7 @@ defmodule Chip8 do
   """
   def execute(state = %{memory: memory, i: i}, <<"F", x, "55">>) do
     {last, ""} = Integer.parse(<<x>>, 16)
-    {regs, _} = Enum.split(registers(), last + 1)
+    {regs, _} = Enum.split(@registers, last + 1)
 
     updated_memory =
       regs
@@ -686,7 +690,7 @@ defmodule Chip8 do
   """
   def execute(%{memory: memory, i: i} = state, <<"F", x, "65">>) do
     {last, ""} = Integer.parse(<<x>>, 16)
-    {regs, _} = Enum.split(registers(), last + 1)
+    {regs, _} = Enum.split(@registers, last + 1)
 
     regs
     |> Enum.with_index()
@@ -706,28 +710,9 @@ defmodule Chip8 do
     Process.send_after(self(), :tick, @tick)
   end
 
-  defp registers do
-    [:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :vA, :vB, :vC, :vD, :vE, :vF]
-  end
-
-  # return bit
   defp set_pixel(display, x, y, value) do
-    new_x =
-      if x > 63 do
-        x - 64
-      else
-        x
-      end
-
-    new_y =
-      if y > 31 do
-        y - 32
-      else
-        y
-      end
-
     # Abusing get_and_update here a bit ...
-    Map.get_and_update!(display, {new_x, new_y}, fn prev_value ->
+    Map.get_and_update!(display, {rem(x, 64), rem(y, 32)}, fn prev_value ->
       xor = prev_value ^^^ value
 
       if prev_value == 1 and xor == 0 do

@@ -10,6 +10,10 @@ defmodule Chip8.Renderer.Wx do
     y: 32
   }
 
+  @valid_keys ["1", "2", "3", "4", "Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"]
+
+  defguard is_valid_key(key_char) when key_char in @valid_keys
+
   def start_link(game) do
     {:wx_ref, 35, :wxFrame, pid} = :wx_object.start_link(__MODULE__, game, [])
     Process.register(pid, __MODULE__)
@@ -60,7 +64,8 @@ defmodule Chip8.Renderer.Wx do
   def handle_event(
         {:wx, _, _, _, {:wxKey, :char, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
-      ) do
+      )
+      when is_valid_key(<<key_char>>) do
     Logger.info("Char: #{key_char} #{<<key_char>>}")
     send(game, {:char, map_key(<<key_char>>)})
 
@@ -70,7 +75,8 @@ defmodule Chip8.Renderer.Wx do
   def handle_event(
         {:wx, _, _, _, {:wxKey, :key_up, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
-      ) do
+      )
+      when is_valid_key(<<key_char>>) do
     Logger.info("Key Up: #{key_char} #{<<key_char>>}")
     send(game, {:key_up, map_key(<<key_char>>)})
 
@@ -80,10 +86,15 @@ defmodule Chip8.Renderer.Wx do
   def handle_event(
         {:wx, _, _, _, {:wxKey, :key_down, _, _, key_char, _, _, _, _, _, _, _, _}},
         %{game: game} = state
-      ) do
+      )
+      when is_valid_key(<<key_char>>) do
     Logger.info("Key Down: #{key_char} #{<<key_char>>}")
     send(game, {:key_down, map_key(<<key_char>>)})
 
+    {:noreply, state}
+  end
+
+  def handle_event(_, state) do
     {:noreply, state}
   end
 
