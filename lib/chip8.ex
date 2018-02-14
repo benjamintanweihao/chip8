@@ -78,9 +78,9 @@ defmodule Chip8 do
 
   def handle_info({:key_up, key_char}, %{running?: {false, vx}} = state) do
     val = Integer.parse(key_char, 16)
-    new_state = Map.replace!(state, vx, val)
+    new_state = state |> Map.replace!(vx, val) |> Map.replace!(:running?, true)
 
-    %{new_state | running?: true}
+    {:noreply, new_state}
   end
 
   def handle_info({:key_up, key_char}, %{io: io} = state) do
