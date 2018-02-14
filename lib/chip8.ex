@@ -6,7 +6,7 @@ defmodule Chip8 do
 
   alias __MODULE__.{State, Memory, ROM, Display}
 
-  @tick 100
+  @tick 10
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, opts)
@@ -48,11 +48,13 @@ defmodule Chip8 do
 
     new_state = execute(%{state | pc: pc + 2}, opcode)
 
-    renderer.render(prev_display, new_state.display)
+    if new_state.draw? do
+      renderer.render(prev_display, new_state.display)
+    end
 
     tick()
 
-    {:noreply, %{new_state | dt: max(dt - 1, 0)}}
+    {:noreply, %{new_state | dt: max(dt - 1, 0), draw?: false}}
   end
 
   def handle_info({:key_up, key_char}, %{io: io} = state) do
@@ -99,7 +101,7 @@ defmodule Chip8 do
   Clear the display.
   """
   def execute(state, "00E0") do
-    %{state | display: Display.new()}
+    %{state | display: Display.new(), draw?: true}
   end
 
   @doc """
@@ -482,7 +484,7 @@ defmodule Chip8 do
         {vF ||| new_vF, new_display}
       end)
 
-    %{state | display: new_display, vF: new_vF}
+    %{state | display: new_display, vF: new_vF, draw?: true}
   end
 
   @doc """
