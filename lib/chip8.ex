@@ -14,6 +14,11 @@ defmodule Chip8 do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
+  # TODO: Not sure if this works yet
+  def stop(pid) do
+    GenServer.stop(pid)
+  end
+
   def opcode(instr_1, instr_2) do
     (instr_1 <<< 8 ||| instr_2)
     |> Integer.to_string(16)

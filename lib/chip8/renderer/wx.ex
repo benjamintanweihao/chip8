@@ -1,5 +1,6 @@
 defmodule Chip8.Renderer.Wx do
   @behaviour Chip8.Renderer
+  @behaviour :wx_object
 
   use Bitwise
   require Logger
@@ -15,8 +16,7 @@ defmodule Chip8.Renderer.Wx do
   defguard is_valid_key(key_char) when key_char in @valid_keys
 
   def start_link(game) do
-    {:wx_ref, 35, :wxFrame, pid} = :wx_object.start_link(__MODULE__, game, [])
-    Process.register(pid, __MODULE__)
+    {:wx_ref, 35, :wxFrame, pid} = :wx_object.start_link({:local, __MODULE__}, __MODULE__, game, [])
     {:ok, pid}
   end
 
@@ -39,6 +39,8 @@ defmodule Chip8.Renderer.Wx do
       :ok = :wxFrame.connect(panel, evt)
     end
 
+    :ok = :wxFrame.connect(frame, :close_window, [{:callback, &close_window/2}])
+    :ok = :wxFrame.move(frame, {0, 0})
     :wxFrame.show(frame)
 
     dc = :wxPaintDC.new(panel)
@@ -47,6 +49,15 @@ defmodule Chip8.Renderer.Wx do
     :wxGraphicsContext.setPen(canvas, pen)
 
     {frame, %{game: game, panel: panel, canvas: canvas, frame: frame, dc: dc}}
+  end
+
+  def close_window(
+        {:wx, _, frame, [], {:wxClose, :close_window}},
+        {:wx_ref, _, :wxCloseEvent, []}
+      ) do
+    :wxFrame.destroy(frame)
+
+    send(self(), :stop)
   end
 
   def render(prev_display, new_display) do
@@ -59,6 +70,12 @@ defmodule Chip8.Renderer.Wx do
     end)
 
     {:reply, :ok, state}
+  end
+
+  def handle_info(:stop, %{game: game} = state) do
+    :ok = Chip8.stop(game)
+
+    {:stop, :normal, state}
   end
 
   def handle_event(
@@ -97,12 +114,6 @@ defmodule Chip8.Renderer.Wx do
   def handle_event(_, state) do
     {:noreply, state}
   end
-
-  # TODO: Detect close event
-  # def terminate(_reason, %{dc: dc, frame: frame}) do
-  #   :wxPaintDC.destroy(dc)
-  #   :wxFrame.destroy(frame)
-  # end
 
   defp draw_board(prev_display, new_display, canvas) do
     for y <- 0..(@board_size.y - 1) do
@@ -146,9 +157,5 @@ defmodule Chip8.Renderer.Wx do
   defp map_key("X"), do: "0"
   defp map_key("C"), do: "B"
   defp map_key("V"), do: "F"
-
-  defp map_key(key) do
-    Logger.warn("Unhandled key: #{key}")
-    key
-  end
+  defp map_key(key), do: key
 end
